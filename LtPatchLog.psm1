@@ -90,15 +90,18 @@ function Import-LtPatchingLog {
             $LogContent = Get-Content $FullName
 
             # Match the content, line by line
+            $i = 1
             Foreach ($line in $LogContent) {
                 $Groups = [regex]::Match($line, $ptnLtPatchingLogLine).Groups
                 New-Object psobject -Property @{
+                    LineNumber    = $i
                     ComputerName  = $Computer
                     Service       = [string](($Groups | Where-Object {$_.Name -eq 1}).Value)
                     Version       = [version](($Groups | Where-Object {$_.Name -eq 2}).Value)
                     TimeGenerated = [datetime](($Groups | Where-Object {$_.Name -eq 3}).Value)
                     Message       = [string](($Groups | Where-Object {$_.Name -eq 4}).Value)
                 }#New-Object psobject -Property @{
+                $i++
             }#Foreach ($line in $LogContent){
         }#Foreach ($item in $Path){
     }
@@ -273,7 +276,8 @@ function Add-LtLogClassify {
                     $record | Add-Member @TypeSplat
                     $record | Add-Member @ValueSplat
                     $record | Add-Member @DataSplat
-                    Write-Output $record
+                    Write-Output $record |
+                        Sort-Object -Property LineNumber
 
                 }#if ($MatchGroups[0].Success)
             }#foreach ($Key in $keySet)
