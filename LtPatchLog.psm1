@@ -90,8 +90,9 @@ function Import-LtPatchingLog {
             $LogContent = Get-Content $FullName
 
             # Match the content, line by line
-            $i = 1
+            $i = 0
             Foreach ($line in $LogContent) {
+                $i++
                 $Groups = [regex]::Match($line, $ptnLtPatchingLogLine).Groups
                 New-Object psobject -Property @{
                     LineNumber    = $i
@@ -101,7 +102,6 @@ function Import-LtPatchingLog {
                     TimeGenerated = [datetime](($Groups | Where-Object {$_.Name -eq 3}).Value)
                     Message       = [string](($Groups | Where-Object {$_.Name -eq 4}).Value)
                 }#New-Object psobject -Property @{
-                $i++
             }#Foreach ($line in $LogContent){
         }#Foreach ($item in $Path){
     }
@@ -149,10 +149,23 @@ function Add-LtLogClassify {
         }
 
         $keySet = $dicMsgClass.Keys
+
+        $ColumnOrder = @(
+            'ComputerName'
+            'LineNumber'
+            'TimeGenerated'
+            'Class'
+            'Type'
+            'Value'
+            'Data'
+            'Message'
+            'Service'
+            'Version'
+        )
     }
     Process {
         Foreach ($record in $InputObject) {
-            # $record = $InputObject[-3]
+            $MatchFound = $false
 
             # Capture the message text
             $Message = $record.Message
@@ -168,9 +181,16 @@ function Add-LtLogClassify {
                 $MatchGroups = [regex]::Match($Message, $ptnMsg).Groups
 
                 if ($MatchGroups[0].Success) {
+                    $MatchFound = $true
                     $Class = $Key
 
-                    switch ($Class) {
+                    # Instead of the below switch
+                    # Use this unless I customize a class handler
+                    $Type = $MatchGroups[1].Value
+                    $Value = $MatchGroups[2].Value
+                    $Data = $MatchGroups[3].Value
+
+                    <#switch ($Class) {
                         InstallAttempt {
                             $Type = $MatchGroups[1].Value
                             $Value = $MatchGroups[2].Value
@@ -248,8 +268,9 @@ function Add-LtLogClassify {
                             $Value = $MatchGroups[2].Value
                             $Data = $MatchGroups[3].Value
                         }#Default
-                    }#switch ($MatchingKey)
+                    }#switch ($MatchingKey)#>
 
+                    # Add the values to the record
                     $ClassSplat = @{
                         MemberType = 'NoteProperty'
                         Name       = 'Class'
@@ -271,31 +292,43 @@ function Add-LtLogClassify {
                         Value      = $Data
                     }
 
-                    # Write the record to the pipeline
+                    # Add the calculated properties
                     $record | Add-Member @ClassSplat
                     $record | Add-Member @TypeSplat
                     $record | Add-Member @ValueSplat
                     $record | Add-Member @DataSplat
+
+                    # Write the record to the pipeline
                     Write-Output $record |
-                        Sort-Object -Property LineNumber
+                        Select-Object $ColumnOrder
 
                 }#if ($MatchGroups[0].Success)
             }#foreach ($Key in $keySet)
+
+            # Handle unmatched records
+            if (!$MatchFound) {
+                Write-Warning "Unmatched Record: $($LineNumber): $($Message)"
+                Write-Output $record |
+                        Select-Object $ColumnOrder
+            }#if (!$MatchFound)
+
         }#Foreach ($record in $InputObject)
     }
     End {
     }
 }
 <#
+ipmo 'C:\Users\tpagliaro\Documents\WindowsPowerShell\Modules\LtPatchLog\LtPatchLog.psm1' -Force
 $temp =
     Get-LtPatchingFile |
         Import-LtPatchingLog |
         Add-LtLogClassify
 $temp[0]
 $Temp.Count
-$temp|select timeg*,Class,Type,
+$temp|select linen*,timeg*,
+    Class,Type,
     Value,Data,mess*|
-    sort timeg* -desc|
+    Sort Linen* -desc|
     Out-GridView
 
 #>
