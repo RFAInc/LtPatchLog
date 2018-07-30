@@ -75,7 +75,7 @@ function Import-LtPatchingLog {
     )
 
     Begin {
-        $ptnLtPatchingLogLine = '(\w+?)\s\sv(\d{3}\.\d{3})\s\s\-\s(\d{1,2}\/\d{1,2}\/20\d{2}\s\d{1,2}:\d{2}:\d{2}\s[AP]M)\s\s-\s(.+?):::'
+        $ptnLtPatchingLogLine = '(\w+?)\s\sv(\d{3}\.\d{3})\s+?\-\s(\d{1,2}\/\d{1,2}\/20\d{2}\s\d{1,2}:\d{2}:\d{2}\s?[AP]?M?)\s+?-\s(.+?):::'
     }
     Process {
         Foreach ($FullName in $Path) {
@@ -323,8 +323,8 @@ $temp =
     Get-LtPatchingFile |
         Import-LtPatchingLog |
         Add-LtLogClassify
-$temp[0]
-$Temp.Count
+#$temp[0]
+#$Temp.Count
 $temp|select linen*,timeg*,
     Class,Type,
     Value,Data,mess*|
