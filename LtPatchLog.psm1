@@ -1,6 +1,6 @@
 <#
 .DESCRIPTION
-   Finds the patching LabTech log file given a computername. 
+   Finds the patching LabTech log file given a computername.
 .EXAMPLE
    $temp = Get-Content computers.txt | Get-LtPatchingFile | Import-LtPatchingLog
 .INPUTS
@@ -53,7 +53,7 @@ function Get-LtPatchingFile {
 }
 <#
 .DESCRIPTION
-   Imports log entries from a specificly formatted LabTech log file. 
+   Imports log entries from a specificly formatted LabTech log file.
 .EXAMPLE
    $temp = Get-LtPatchingFile | Import-LtPatchingLog
 .INPUTS
@@ -75,7 +75,9 @@ function Import-LtPatchingLog {
     )
 
     Begin {
-        $ptnLtPatchingLogLine = '(\w+?)\s\sv(\d{3}\.\d{3})\s\s\-\s(\d{1,2}\/\d{1,2}\/20\d{2}\s\d{1,2}:\d{2}:\d{2}\s[AP]M)\s\s-\s(.+?):::'
+        $ptnLtPatchingLogLine = '(\w+?)\s\sv(\d{3}\.\d{3})\s+?\-\s(\d{1,2}\/\d{1,2}\/20\d{2}\s\d{1,2}:\d{2}:\d{2}\s[AP]?M?)\s+?-\s(.+?):::'
+        $USTimeFormat = 'M/d/yyyy h:mm:ss tt'
+        $UKTimeFormat = 'dd/MM/yyyy HH:mm:ss'
     }
     Process {
         Foreach ($FullName in $Path) {
@@ -94,12 +96,43 @@ function Import-LtPatchingLog {
             Foreach ($line in $LogContent) {
                 $i++
                 $Groups = [regex]::Match($line, $ptnLtPatchingLogLine).Groups
+
+                # Datetime handling of unknown culture
+                $strDate = ($Groups | Where-Object {$_.Name -eq 3}).Value
+                Try{
+                    # Try getting the date string to a datetime
+                    $TimeGenerated = Get-Date $strDate -ea Stop
+                }
+                Catch{
+                    Try{
+                        # Try to force the UK time format
+                        $TimeGenerated = Get-Date $strDate -Format $UKTimeFormat -ea Stop
+                    }
+                    Catch{
+                        Try{
+                            # Try to force the US time format
+                            $TimeGenerated = Get-Date $strDate -Format $USTimeFormat -ea Stop
+                        }
+                        Catch{
+                            Try{
+                                # Extract the default Date/Time formatting from the remote Culture
+                                $TimeGenerated = ConvertTo-RemoteDateCulture -Date (
+                                    $strDate) -ComputerName $Computer -ea Stop
+                            }
+                            Catch{
+                                # Give up, the line number is good enough
+                                $TimeGenerated = $null
+                            }
+                        }
+                    }
+                }
+
                 New-Object psobject -Property @{
                     LineNumber    = $i
                     ComputerName  = $Computer
                     Service       = [string](($Groups | Where-Object {$_.Name -eq 1}).Value)
                     Version       = [version](($Groups | Where-Object {$_.Name -eq 2}).Value)
-                    TimeGenerated = [datetime](($Groups | Where-Object {$_.Name -eq 3}).Value)
+                    TimeGenerated = $TimeGenerated
                     Message       = [string](($Groups | Where-Object {$_.Name -eq 4}).Value)
                 }#New-Object psobject -Property @{
             }#Foreach ($line in $LogContent){
