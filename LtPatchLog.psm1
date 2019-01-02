@@ -141,3 +141,228 @@ function Import-LtPatchingLog {
     End {
     }
 }
+<#
+.DESCRIPTION
+Classifies log entries based on known messages. 
+.EXAMPLE
+$temp = Get-LtPatchingFile | Import-LtPatchingLog | Add-LtLogClassify
+.INPUTS
+Inputs to this cmdlet come from the Import-LtPatchingLog function.
+.OUTPUTS
+Output from this cmdlet is a psobject that can be consumed by other functions where noted.
+#>
+function Add-LtLogClassify {
+    [CmdletBinding()]
+    [OutputType([psobject])]
+    Param
+    (
+        [Parameter(Mandatory = $true,
+            ValueFromPipeline = $true,
+            Position = 0)]
+        [psobject]
+        $InputObject
+    )
+
+    Begin {
+        $dicMsgClass = @{
+            InstallAttempt            = '(Attempting to install) patches: (.*)'
+            noDaytimePatching         = '(Daytime patching) is (n?o?t?\s?enabled)'
+            PolicySchedule            = 'Microsoft\sUpdate\sPolicy\s\-\sSchedule:\s(\w{2}\sat\s\d{1,2}[AP]M\-\d{1,2}[AP]M)\s\-\sOptions:\s(.*)$'
+            PolicyScheduleWithOptions = 'Microsoft\sUpdate\sPolicy\s\-\sSchedule:\s(\w{2}\sat\s\d{1,2}[AP]M\-\d{1,2}[AP]M)\s\-\sOptions:\sBefore Script:\s([a-f\d\-]+?), After Script:\s([a-f\d\-]+?)$'
+            PolicyUpdated             = '(Microsoft Update Policy)\s(settings updated)'
+            InitManual                = '(Initiating manual) (patch u?n?install)'
+            InitAuto                  = '(Initiating) (Microsoft Patch Job)'
+            InitReboot                = 'Initiating\spatch reboot\.\s(Applied policy behavior):\s(.+?)$'
+            GetPatches                = '(Getting)\s([\w\s]+?)\sPatches'
+            NoWork                    = '(No Patch work) needs (to be done)'
+            GetNextWindow             = 'Getting\snext\s([\w\s]+?)\swindow\s?f?o?r?\s?t?h?e?\s?(.*)\s?\.'
+            NextWindowIs              = '(Next Window): (\d{1,2}\/\d{2}\/20\d{2}\s\d{1,2}[AP]M\-\d{1,2}[AP]M)'
+            RebootRequired            = '(Patch) install (requires reboot)'
+            RebootComplete            = '(Patch) (reboot complete)'
+        }
+
+        $keySet = $dicMsgClass.Keys
+
+        $ColumnOrder = @(
+            'ComputerName'
+            'LineNumber'
+            'TimeGenerated'
+            'Class'
+            'Type'
+            'Value'
+            'Data'
+            'Message'
+            'Service'
+            'Version'
+        )
+    }
+    Process {
+        Foreach ($record in $InputObject) {
+            $MatchFound = $false
+
+            # Capture the message text
+            $Message = $record.Message
+
+            # $Key = 'NextWindow'
+            foreach ($Key in $keySet) {
+                # $Key = 'GetNextWindow'
+
+                # Set the pattern
+                $ptnMsg = $dicMsgClass.Get_Item($Key)
+
+                # Make me a match
+                $MatchGroups = [regex]::Match($Message, $ptnMsg).Groups
+
+                if ($MatchGroups[0].Success) {
+                    $MatchFound = $true
+                    $Class = $Key
+
+                    # Instead of the below switch
+                    # Use this unless I customize a class handler
+                    $Type = $MatchGroups[1].Value
+                    $Value = $MatchGroups[2].Value
+                    $Data = $MatchGroups[3].Value
+
+                    <#switch ($Class) {
+                        InstallAttempt {
+                            $Type = $MatchGroups[1].Value
+                            $Value = $MatchGroups[2].Value
+                            $Data = $MatchGroups[3].Value
+                        }#InstallAttempt
+                        RebootRequired {
+                            $Type = $MatchGroups[1].Value
+                            $Value = $MatchGroups[2].Value
+                            $Data = $MatchGroups[3].Value
+                        }#RebootRequired
+                        PolicyUpdated {
+                            $Type = $MatchGroups[1].Value
+                            $Value = $MatchGroups[2].Value
+                            $Data = $MatchGroups[3].Value
+                        }#PolicyUpdated
+                        InitManual {
+                            $Type = $MatchGroups[1].Value
+                            $Value = $MatchGroups[2].Value
+                            $Data = $MatchGroups[3].Value
+                        }#InitManual
+                        NoWork {
+                            $Type = $MatchGroups[1].Value
+                            $Value = $MatchGroups[2].Value
+                            $Data = $MatchGroups[3].Value
+                        }#NoWork
+                        PolicyScheduleWithOptions {
+                            $Type = $MatchGroups[1].Value
+                            $Value = $MatchGroups[2].Value
+                            $Data = $MatchGroups[3].Value
+                        }#PolicyScheduleWithOptions
+                        PolicySchedule {
+                            $Type = $MatchGroups[1].Value
+                            $Value = $MatchGroups[2].Value
+                            $Data = $MatchGroups[3].Value
+                        }#PolicySchedule
+                        GetPatches {
+                            $Type = $MatchGroups[1].Value
+                            $Value = $MatchGroups[2].Value
+                            $Data = $MatchGroups[3].Value
+                        }#GetPatches
+                        GetNextWindow {
+                            $Type = $MatchGroups[1].Value
+                            $Value = $MatchGroups[2].Value
+                            $Data = $MatchGroups[3].Value
+                        }#GetNextWindow
+                        NextWindowIs {
+                            $Type = $MatchGroups[1].Value
+                            $Value = $MatchGroups[2].Value
+                            $Data = $MatchGroups[3].Value
+                        }#NextWindow
+                        InitReboot {
+                            $Type = $MatchGroups[1].Value
+                            $Value = $MatchGroups[2].Value
+                            $Data = $MatchGroups[3].Value
+                        }#InitReboot
+                        noDaytimePatching {
+                            $Type = $MatchGroups[1].Value
+                            $Value = $MatchGroups[2].Value
+                            $Data = $MatchGroups[3].Value
+                        }#noDaytimePatching
+                        InitAuto {
+                            $Type = $MatchGroups[1].Value
+                            $Value = $MatchGroups[2].Value
+                            $Data = $MatchGroups[3].Value
+                        }#InitAuto
+                        RebootComplete {
+                            $Type = $MatchGroups[1].Value
+                            $Value = $MatchGroups[2].Value
+                            $Data = $MatchGroups[3].Value
+                        }#RebootComplete
+                        Default {
+                            # "This switch shouldn't have zero matches!...." -ErrorAction Inquire
+                            Write-Warning "Unhandled Key: $($Class) - $($Message)"
+                            $Type = $MatchGroups[1].Value
+                            $Value = $MatchGroups[2].Value
+                            $Data = $MatchGroups[3].Value
+                        }#Default
+                    }#switch ($MatchingKey)#>
+
+                    # Add the values to the record
+                    $ClassSplat = @{
+                        MemberType = 'NoteProperty'
+                        Name       = 'Class'
+                        Value      = $Class
+                    }
+                    $TypeSplat = @{
+                        MemberType = 'NoteProperty'
+                        Name       = 'Type'
+                        Value      = $Type
+                    }
+                    $ValueSplat = @{
+                        MemberType = 'NoteProperty'
+                        Name       = 'Value'
+                        Value      = $Value
+                    }
+                    $DataSplat = @{
+                        MemberType = 'NoteProperty'
+                        Name       = 'Data'
+                        Value      = $Data
+                    }
+
+                    # Add the calculated properties
+                    $record | Add-Member @ClassSplat
+                    $record | Add-Member @TypeSplat
+                    $record | Add-Member @ValueSplat
+                    $record | Add-Member @DataSplat
+
+                    # Write the record to the pipeline
+                    Write-Output $record |
+                        Select-Object $ColumnOrder
+
+                }#if ($MatchGroups[0].Success)
+            }#foreach ($Key in $keySet)
+
+            # Handle unmatched records
+            if (!$MatchFound) {
+                Write-Warning "Unmatched Record: $($LineNumber): $($Message)"
+                Write-Output $record |
+                        Select-Object $ColumnOrder
+            }#if (!$MatchFound)
+
+        }#Foreach ($record in $InputObject)
+    }
+    End {
+    }
+}
+<#
+ipmo 'C:\Users\tpagliaro\Documents\WindowsPowerShell\Modules\LtPatchLog\LtPatchLog.psm1' -Force
+$temp =
+    Get-LtPatchingFile |
+        Import-LtPatchingLog |
+        Add-LtLogClassify
+#$temp[0]
+#$Temp.Count
+$temp|select linen*,timeg*,
+    Class,Type,
+    Value,Data,mess*|
+    Sort Linen* -desc|
+    Out-GridView
+
+#>
+
