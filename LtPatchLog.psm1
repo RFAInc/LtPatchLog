@@ -141,3 +141,4 @@ function Import-LtPatchingLog {
     End {
     }
 }
+Export-ModuleMember -Function @('Import-LtPatchingLog','Get-LtPatchingFile')
