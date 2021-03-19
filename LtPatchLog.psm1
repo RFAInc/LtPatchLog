@@ -10,14 +10,14 @@ function Get-LtPatchingFile {
     Output from this cmdlet is a io.fileinfo object.
     #>
     [CmdletBinding()]
-    [OutputType([System.IO.FileInfo[]])]
+    [OutputType([System.IO.FileInfo])]
     Param
     (
         [Parameter(ValueFromPipeline = $true,
             ValueFromPipelineByPropertyName = $true,
             Position = 0)]
         [Alias('Name', '__SERVER', 'CN', 'Computer')]
-        [string[]]
+        [string]
         $ComputerName = $env:COMPUTERNAME
     )
 
@@ -69,6 +69,7 @@ function Import-LtPatchingLog {
     (
         [Parameter(Mandatory = $true,
             ValueFromPipelineByPropertyName = $true,
+            ValueFromPipeline = $true,
             Position = 0)]
         [string]
         [Alias('FullName')]
@@ -142,5 +143,3 @@ function Import-LtPatchingLog {
     End {
     }
 }
-
-Export-ModuleMember -Function @('Import-LtPatchingLog','Get-LtPatchingFile')
