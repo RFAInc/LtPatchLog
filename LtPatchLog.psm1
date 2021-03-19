@@ -1,14 +1,14 @@
-<#
-.DESCRIPTION
-   Finds the patching LabTech log file given a computername.
-.EXAMPLE
-   $temp = Get-Content computers.txt | Get-LtPatchingFile | Import-LtPatchingLog
-.INPUTS
-   Inputs to this cmdlet can be a list of Windows computer hostnames or IPs.
-.OUTPUTS
-   Output from this cmdlet is a io.fileinfo object.
-#>
 function Get-LtPatchingFile {
+    <#
+    .DESCRIPTION
+    Finds the patching LabTech log file given a computername.
+    .EXAMPLE
+    $temp = Get-Content computers.txt | Get-LtPatchingFile | Import-LtPatchingLog
+    .INPUTS
+    Inputs to this cmdlet can be a list of Windows computer hostnames or IPs.
+    .OUTPUTS
+    Output from this cmdlet is a io.fileinfo object.
+    #>
     [CmdletBinding()]
     [OutputType([System.IO.FileInfo[]])]
     Param
@@ -51,17 +51,18 @@ function Get-LtPatchingFile {
     End {
     }
 }
-<#
-.DESCRIPTION
-   Imports log entries from a specificly formatted LabTech log file.
-.EXAMPLE
-   $temp = Get-LtPatchingFile | Import-LtPatchingLog
-.INPUTS
-   Inputs to this cmdlet come from the Get-LtPatchingFile function.
-.OUTPUTS
-   Output from this cmdlet is a psobject that can be consumed by other functions where noted.
-#>
+
 function Import-LtPatchingLog {
+    <#
+    .DESCRIPTION
+    Imports log entries from a specificly formatted LabTech log file.
+    .EXAMPLE
+    $temp = Get-LtPatchingFile | Import-LtPatchingLog
+    .INPUTS
+    Inputs to this cmdlet come from the Get-LtPatchingFile function.
+    .OUTPUTS
+    Output from this cmdlet is a psobject that can be consumed by other functions where noted.
+    #>
     [CmdletBinding()]
     [OutputType([psobject])]
     Param
